@@ -142,7 +142,7 @@ export function Game() {
   ), [handleRefresh])
 
   return (
-    <div className="w-fit min-h-screen relative">
+    <div className="w-full h-screen relative">
       {refreshButton}
       <Canvas>
         <ambientLight />

@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import * as THREE from 'three'
 import { Line } from '@react-three/drei'
-import { useFrame } from '@react-three/fiber'
 
 interface WebProps {
   points: THREE.Vector3[]
@@ -10,7 +9,7 @@ interface WebProps {
   isMoving: boolean
 }
 
-export function Web({ points, currentPosition, targetPosition, isMoving }: WebProps) {
+export function Web({ points, currentPosition, isMoving }: WebProps) {
   const linePoints = useMemo(() => {
     return points.map(point => [point.x, point.y, point.z] as [number, number, number])
   }, [points])

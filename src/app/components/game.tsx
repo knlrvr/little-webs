@@ -97,12 +97,19 @@ function GameContent({ shouldRefresh, setShouldRefresh }: { shouldRefresh: boole
         <planeGeometry args={[viewport.width, viewport.height]} />
         <meshBasicMaterial />
       </mesh>
+
       <Spider 
         position={spiderPosition}
         targetPosition={targetPosition}
         onReachTarget={handleReachTarget}
       />
-      <Web points={webPoints} currentPosition={spiderPosition} targetPosition={targetPosition} />
+
+      <Web
+        points={webPoints}
+        currentPosition={spiderPosition}
+        targetPosition={targetPosition}
+        isMoving={isMoving}
+      />
       <Background />
     </>
   )

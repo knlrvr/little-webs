@@ -7,26 +7,39 @@ interface WebProps {
   points: THREE.Vector3[]
   currentPosition: THREE.Vector3
   targetPosition: THREE.Vector3
+  isMoving: boolean
 }
 
-export function Web({ points, currentPosition, targetPosition }: WebProps) {
+export function Web({ points, currentPosition, targetPosition, isMoving }: WebProps) {
   const linePoints = useMemo(() => {
-    return [...points, currentPosition].map(point => [point.x, point.y, point.z] as [number, number, number])
-  }, [points, currentPosition])
+    return points.map(point => [point.x, point.y, point.z] as [number, number, number])
+  }, [points])
 
-  useFrame(() => {
-    // Update the last point of linePoints to match currentPosition
-    if (linePoints.length > 0) {
-      const lastIndex = linePoints.length - 1
-      linePoints[lastIndex] = [currentPosition.x, currentPosition.y, currentPosition.z]
+  const movingLinePoints = useMemo(() => {
+    if (isMoving && points.length > 0) {
+      const lastPoint = points[points.length - 1]
+      return [
+        [lastPoint.x, lastPoint.y, lastPoint.z] as [number, number, number],
+        [currentPosition.x, currentPosition.y, currentPosition.z] as [number, number, number]
+      ]
     }
-  })
+    return []
+  }, [points, currentPosition, isMoving])
 
   return (
-    <Line
-      points={linePoints}
-      color="white"
-      lineWidth={2}
-    />
+    <>
+      <Line
+        points={linePoints}
+        color="white"
+        lineWidth={2}
+      />
+      {isMoving && movingLinePoints.length > 0 && (
+        <Line
+          points={movingLinePoints}
+          color="white"
+          lineWidth={2}
+        />
+      )}
+    </>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -8,30 +8,35 @@ import { Spider } from './spider'
 import { Web } from './web'
 
 const HOME_POSITION = new THREE.Vector3(0, 0, 0)
+const CENTER_THRESHOLD = 0.025;
 
-interface GameContentProps {
-  shouldRefresh: boolean;
-  setShouldRefresh: (value: boolean) => void;
-}
-
-function GameContent({ shouldRefresh, setShouldRefresh }: GameContentProps) {
+function GameContent({ shouldRefresh, setShouldRefresh }: { shouldRefresh: boolean; setShouldRefresh: (value: boolean) => void }) {
   const [spiderPosition, setSpiderPosition] = useState(HOME_POSITION.clone())
   const [targetPosition, setTargetPosition] = useState(HOME_POSITION.clone())
   const [webPoints, setWebPoints] = useState<THREE.Vector3[]>([HOME_POSITION.clone()])
   const [isMoving, setIsMoving] = useState(false)
+  const lastMoveWasFromCenter = useRef(false)
+  const previousPosition = useRef(HOME_POSITION.clone())
 
   const { viewport } = useThree()
+
+  const isNearCenter = useCallback((position: THREE.Vector3) => {
+    const centerThreshold = viewport.width * CENTER_THRESHOLD
+    return position.distanceTo(HOME_POSITION) < centerThreshold
+  }, [viewport])
+
+  const isOnEdge = useCallback((position: THREE.Vector3) => {
+    return Math.abs(position.x / (viewport.width / 2)) > 0.95 || Math.abs(position.y / (viewport.height / 2)) > 0.95
+  }, [viewport])
 
   const handlePointerDown = useCallback((event: THREE.Event) => {
     if (isMoving) return
 
     const { point } = event as unknown as { point: THREE.Vector3 }
-    const x = point.x
-    const y = point.y
+    const newPosition = new THREE.Vector3(point.x, point.y, 0)
 
-    const newPosition = new THREE.Vector3(x, y, 0)
-
-    const isOnEdge = Math.abs(x / (viewport.width / 2)) > 0.95 || Math.abs(y / (viewport.height / 2)) > 0.95
+    const clickIsOnEdge = isOnEdge(newPosition)
+    const clickIsCenter = isNearCenter(newPosition)
 
     // Check if the click is on or near an existing web line
     const isOnWeb = webPoints.some((start, index) => {
@@ -43,39 +48,35 @@ function GameContent({ shouldRefresh, setShouldRefresh }: GameContentProps) {
       return closestPoint.distanceTo(newPosition) < 0.05
     })
 
-    if (isOnEdge) {
-      setTargetPosition(newPosition)
+    if (clickIsOnEdge || isOnWeb || clickIsCenter) {
+      setTargetPosition(clickIsCenter ? HOME_POSITION : newPosition)
       setIsMoving(true)
-    } else if (isOnWeb) {
-      // Find the closest point on the web
-      let closestPoint = new THREE.Vector3()
-      let minDistance = Infinity
 
-      webPoints.forEach((start, index) => {
-        if (index === webPoints.length - 1) return
-        const end = webPoints[index + 1]
-        const line = new THREE.Line3(start, end)
-        const tempClosestPoint = new THREE.Vector3()
-        line.closestPointToPoint(newPosition, true, tempClosestPoint)
-        const distance = tempClosestPoint.distanceTo(newPosition)
-        if (distance < minDistance) {
-          minDistance = distance
-          closestPoint = tempClosestPoint
+      if (clickIsCenter) {
+        if (lastMoveWasFromCenter.current && !isOnEdge(spiderPosition)) {
+          // Don't create a new web when moving back to center from a line created from center
+          setWebPoints(prev => {
+            const newWebPoints = [...prev]
+            newWebPoints.pop() // Remove the last point (which was the move away from center)
+            return newWebPoints
+          })
         }
-      })
-
-      setTargetPosition(closestPoint)
-      setIsMoving(true)
+        // Reset lastMoveWasFromCenter only if we're not on the edge
+        lastMoveWasFromCenter.current = isOnEdge(spiderPosition) ? lastMoveWasFromCenter.current : false
+      } else {
+        lastMoveWasFromCenter.current = isNearCenter(spiderPosition)
+      }
     }
-  }, [isMoving, webPoints, viewport])
+  }, [isMoving, webPoints, viewport, spiderPosition, isNearCenter, isOnEdge])
 
   const handleReachTarget = useCallback(() => {
-    setSpiderPosition(targetPosition.clone())
     if (!targetPosition.equals(HOME_POSITION) && !webPoints.some(point => point.equals(targetPosition))) {
-      setWebPoints(prev => [...prev, targetPosition.clone()])
+      setWebPoints(prev => [...prev, previousPosition.current.clone(), targetPosition.clone()])
     }
+    previousPosition.current.copy(spiderPosition)
+    setSpiderPosition(targetPosition.clone())
     setIsMoving(false)
-  }, [targetPosition, webPoints])
+  }, [targetPosition, webPoints, spiderPosition])
 
   // Handle refresh
   React.useEffect(() => {
@@ -84,6 +85,8 @@ function GameContent({ shouldRefresh, setShouldRefresh }: GameContentProps) {
       setTargetPosition(HOME_POSITION.clone())
       setWebPoints([HOME_POSITION.clone()])
       setIsMoving(false)
+      lastMoveWasFromCenter.current = false
+      previousPosition.current.copy(HOME_POSITION)
       setShouldRefresh(false)
     }
   }, [shouldRefresh, setShouldRefresh])
@@ -99,7 +102,7 @@ function GameContent({ shouldRefresh, setShouldRefresh }: GameContentProps) {
         targetPosition={targetPosition}
         onReachTarget={handleReachTarget}
       />
-      <Web points={webPoints} />
+      <Web points={webPoints} currentPosition={spiderPosition} targetPosition={targetPosition} />
       <Background />
     </>
   )

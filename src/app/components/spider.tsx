@@ -9,35 +9,57 @@ interface SpiderProps {
 }
 
 export function Spider({ position, targetPosition, onReachTarget }: SpiderProps) {
-  const mesh = useRef<THREE.Mesh>(null)
+  const group = useRef<THREE.Group>(null)
   const currentPosition = useRef(position.clone())
   const speed = 0.05
+  const legAnimationSpeed = 0.1
 
   useEffect(() => {
     currentPosition.current.copy(position)
   }, [position])
 
-  useFrame(() => {
-    if (mesh.current) {
+  useFrame((state) => {
+    if (group.current) {
       const direction = targetPosition.clone().sub(currentPosition.current)
       const distance = direction.length()
       
-      if (distance > 0.001) { // Small threshold to avoid floating point issues
+      if (distance > 0.001) {
         direction.normalize().multiplyScalar(Math.min(speed, distance))
         currentPosition.current.add(direction)
-        mesh.current.position.copy(currentPosition.current)
+        group.current.position.copy(currentPosition.current)
+
+        // Rotate spider to face movement direction
+        group.current.rotation.z = Math.atan2(direction.y, direction.x)
+
+        // Animate legs
+        group.current.children.forEach((leg, index) => {
+          if (leg instanceof THREE.Mesh) {
+            leg.rotation.y = Math.sin(state.clock.elapsedTime * legAnimationSpeed + index * Math.PI / 4) * 0.2
+          }
+        })
       } else {
         currentPosition.current.copy(targetPosition)
-        mesh.current.position.copy(targetPosition)
+        group.current.position.copy(targetPosition)
         onReachTarget()
       }
     }
   })
 
   return (
-    <mesh ref={mesh}>
-      <sphereGeometry args={[0.05, 32, 32]} />
-      <meshBasicMaterial color="white" />
-    </mesh>
+    <group ref={group}>
+      {/* Spider body */}
+      <mesh>
+        <sphereGeometry args={[0.05, 32, 32]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
+      
+      {/* Spider legs */}
+      {[...Array(8)].map((_, index) => (
+        <mesh key={index} position={[Math.cos(index * Math.PI / 4) * 0.05, Math.sin(index * Math.PI / 4) * 0.05, 0]}>
+          <boxGeometry args={[0.01, 0.08, 0.01]} />
+          <meshBasicMaterial color="white" />
+        </mesh>
+      ))}
+    </group>
   )
 }

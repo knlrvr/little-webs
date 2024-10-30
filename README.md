@@ -8,7 +8,7 @@
 
 <a name="description"></a>
 ## Description
-Little Webs is a browser game where you control a spider that is able to build a web within the viewport. It's very simple, and allows for a lot of creativity. 
+Little Webs is a browser game where you control a spider that is able to build a web within the viewport. It's very simple, and allows for a lot of creativity. This was just a weekend project that I thought of after seeing a Twitter video. I will not be updating this project /:
 
 <a name="view"></a>
 ## View
